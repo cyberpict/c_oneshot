@@ -1,0 +1,4 @@
+set(__QT_DEPLOY_TARGET_madlibs_FILE /home/mrjester/projects/c_oneshot/build/madlibs)
+set(__QT_DEPLOY_TARGET_madlibs_TYPE EXECUTABLE)
+set(__QT_DEPLOY_TARGET_test_stories_FILE /home/mrjester/projects/c_oneshot/build/test_stories)
+set(__QT_DEPLOY_TARGET_test_stories_TYPE EXECUTABLE)

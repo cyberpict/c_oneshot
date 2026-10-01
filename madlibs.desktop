@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Mad Libs
+GenericName=Word Game
+Comment=Fill in the blanks to make a silly story
+Exec=madlibs
+Icon=madlibs
+Terminal=false
+Categories=Games;ArcadeGame;
+Keywords=madlibs;game;story;
+StartupNotify=true

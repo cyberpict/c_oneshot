@@ -1,0 +1,27 @@
+Start testing: Sep 30 01:13 PDT
+----------------------------------------------------------
+1/1 Testing: test_stories
+1/1 Test: test_stories
+Command: "/home/mrjester/projects/c_oneshot/build/test_stories"
+Directory: /home/mrjester/projects/c_oneshot/build
+"test_stories" start time: Sep 30 01:13 PDT
+Output:
+----------------------------------------------------------
+********* Start testing of TestStories *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260819 (Red Hat 16.2.1-2)), fedora 44
+PASS   : TestStories::initTestCase()
+PASS   : TestStories::slotsMatchBlanks()
+PASS   : TestStories::fillProducesCorrectText()
+PASS   : TestStories::fillRoundTrips()
+PASS   : TestStories::cleanupTestCase()
+Totals: 5 passed, 0 failed, 0 skipped, 0 blacklisted, 1ms
+********* Finished testing of TestStories *********
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"test_stories" end time: Sep 30 01:13 PDT
+"test_stories" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Sep 30 01:13 PDT
