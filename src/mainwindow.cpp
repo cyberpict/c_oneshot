@@ -5,7 +5,7 @@
 #include <QClipboard>
 #include <QComboBox>
 #include <QDialog>
-#include <QHash>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
@@ -21,8 +21,12 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+// mainwindow.cpp — implementation of MainWindow: the Mad Libs game UI.
+
 namespace madlibs {
 
+// Loads all stories, shows the first one, wires up signals/slots and
+// resets to a fresh game state.
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , m_stories(allStories())
@@ -88,6 +92,7 @@ void MainWindow::buildUi()
     inputLay->setContentsMargins(0, 0, 0, 0);
     m_input = new QLineEdit(inputRow);
     m_input->setPlaceholderText(tr("Type a word and press Enter."));
+    m_input->setMaxLength(200);   // keep user text bounded
     inputLay->addWidget(m_input, 1);
     v->addWidget(inputRow);
 
@@ -150,19 +155,35 @@ void MainWindow::buildActions()
     addToolBar(tb);
 }
 
+// Resets all game state and prompts for the first slot of the currently
+// selected story. Handles the (unlikely) edge case of a story with no
+// blanks by marking the game finished immediately.
 void MainWindow::newGame()
 {
     m_current     = m_stories.value(m_storyBox->currentIndex());
     m_answers.clear();
     m_filledCount = 0;
 
+    if (m_current.blanks.isEmpty()) {
+        // Nothing to fill — show the template and treat it as finished.
+        m_questionLabel->setText(tr("This story has no blanks."));
+        m_templateView->setPlainText(renderTemplate(m_current, m_answers, /*active*/ 0));
+        m_input->clear();
+        m_input->setEnabled(false);
+        m_progress->setRange(0, 1);
+        m_progress->setValue(1);
+        refreshButtons();
+        return;
+    }
+
+    // Prompt for the first slot, showing the story title in the prompt.
     m_questionLabel->setText(
         tr("%1 (slot 1 of %2): give me %3")
             .arg(m_current.title)
-            .arg(static_cast<int>(m_current.blanks.size()))
+            .arg(m_current.blanks.size())
             .arg(wordTypeQuestion(m_current.blanks.first()))
     );
-    m_templateView->setPlainText(renderTemplate(m_current, m_answers, /*active*/1));
+    m_templateView->setPlainText(renderTemplate(m_current, m_answers, /*active*/ 1));
     m_input->clear();
     m_input->setEnabled(true);
     m_progress->setRange(0, m_current.blanks.size());
@@ -172,13 +193,24 @@ void MainWindow::newGame()
     m_input->setFocus();
 }
 
+// Changing the story combobox always starts a fresh game with it.
 void MainWindow::onStoryChanged()
 {
     newGame();
 }
 
+// Accepts the word in the input box as the answer for the current slot,
+// then either promotes to the finished state or advances the prompt to
+// the next slot.
 void MainWindow::advance()
 {
+    if (m_filledCount >= m_current.blanks.size()) {
+        // Finished; drop any stale input instead of silently ignoring it.
+        m_input->clear();
+        return;
+    }
+
+    // Trimmed to reject pure-whitespace input.
     const QString word = m_input->text().trimmed();
     if (word.isEmpty()) {
         m_input->setFocus();
@@ -186,8 +218,6 @@ void MainWindow::advance()
         statusBar()->showMessage(tr("Type a word first."), 2000);
         return;
     }
-    if (m_filledCount + 1 > m_current.blanks.size())
-        return;               // already finished; ignore
 
     m_answers.append(word);
     ++m_filledCount;
@@ -202,7 +232,7 @@ void MainWindow::advance()
             tr("Slot %1 of %2: give me %3")
                 .arg(nextSlot)
                 .arg(m_current.blanks.size())
-                .arg(wordTypeQuestion(m_current.blanks[nextSlot - 1]))
+                .arg(wordTypeQuestion(m_current.blanks.at(nextSlot - 1)))
         );
         m_templateView->setPlainText(renderTemplate(m_current, m_answers, nextSlot));
         m_input->setFocus();
@@ -210,82 +240,45 @@ void MainWindow::advance()
     refreshButtons();
 }
 
+// Undoes the most recent answer: removes it from m_answers, re-prompts
+// the player for that same slot, and pre-fills its previous word so it
+// can be edited. Back() at slot 0 is a no-op (Back button is disabled).
 void MainWindow::back()
 {
     if (m_filledCount == 0)
         return;
-    --m_filledCount;
     m_answers.removeLast();
+    --m_filledCount;
     m_progress->setValue(m_filledCount);
 
-    const int slot = m_filledCount + 1;
+    const int slot = m_filledCount + 1;   // the slot just un-filled
+    // Restore its previous answer (if any) into the input for editing.
+    m_input->setEnabled(true);
+    m_input->setText(slot <= m_answers.size() ? m_answers.at(slot - 1) : QString());
+    m_input->setFocus();
+    m_input->selectAll();
+
     m_questionLabel->setText(
         tr("Slot %1 of %2: give me %3")
             .arg(slot)
             .arg(m_current.blanks.size())
-            .arg(wordTypeQuestion(m_current.blanks[slot - 1]))
+            .arg(wordTypeQuestion(m_current.blanks.at(slot - 1)))
     );
-    m_input->setText(m_answers.value(slot - 1, QString()));
     m_templateView->setPlainText(renderTemplate(m_current, m_answers, slot));
-    m_input->setFocus();
-    m_input->selectAll();
     refreshButtons();
 }
 
+// Promotes the UI into the "game over" state: shows the fully filled
+// story, disables the input, and unlocks Copy/Print.
 void MainWindow::finishState()
 {
-    m_questionLabel->setText(tr("Done! Read it, then copy or print."));
-    m_input->setEnabled(false);
+    m_questionLabel->setText(tr("Done! Read it, then copy or print, or press Back to edit."));
     m_input->clear();
-    m_input->setFocus();
-    m_templateView->setPlainText(fillIn(m_current, m_answers));
+    m_input->setEnabled(false);
+    m_templateView->setPlainText(fillTemplate(m_current, m_answers));
     m_progress->setValue(m_current.blanks.size());
     refreshButtons();
-    statusBar()->showMessage(tr("Finished! Press Copy or Print."), 5000);
-}
-
-QString MainWindow::fillIn(const Story &story, const QStringList &answers) const
-{
-    QString out;
-    int i = 0;
-    while (i < story.templateText.size()) {
-        const int open = story.templateText.indexOf(QStringLiteral("{{"), i);
-        if (open < 0) { out += story.templateText.mid(i); break; }
-        out += story.templateText.mid(i, open - i);
-        const int close = story.templateText.indexOf(QStringLiteral("}}"), open + 2);
-        if (close < 0) { out += story.templateText.mid(open); break; }
-        const int slot = story.templateText.mid(open + 2, close - open - 2).trimmed().toInt();
-        if (slot >= 1 && slot <= answers.size())
-            out += answers.at(slot - 1);
-        else
-            out += QStringLiteral("[?%1?]").arg(slot);
-        i = close + 2;
-    }
-    return out;
-}
-
-QString MainWindow::renderTemplate(const Story &story,
-                                   const QStringList &answers,
-                                   int activeSlot) const
-{
-    QString out;
-    int i = 0;
-    while (i < story.templateText.size()) {
-        const int open = story.templateText.indexOf(QStringLiteral("{{"), i);
-        if (open < 0) { out += story.templateText.mid(i); break; }
-        out += story.templateText.mid(i, open - i);
-        const int close  = story.templateText.indexOf(QStringLiteral("}}"), open + 2);
-        if (close < 0) { out += story.templateText.mid(open); break; }
-        const int slot = story.templateText.mid(open + 2, close - open - 2).trimmed().toInt();
-        if (slot >= 1 && slot <= answers.size())
-            out += (slot == activeSlot)
-                       ? QStringLiteral("⟨%1⟩").arg(answers.at(slot - 1))   // highlight the live one
-                       : answers.at(slot - 1);
-        else
-            out += QStringLiteral("[%1]").arg(slot);
-        i = close + 2;
-    }
-    return out;
+    statusBar()->showMessage(tr("Finished! Press Copy or Print, or Back to edit."), 5000);
 }
 
 void MainWindow::refreshButtons()
@@ -293,7 +286,7 @@ void MainWindow::refreshButtons()
     const bool finished  = m_filledCount >= m_current.blanks.size();
     const bool canBack   = m_filledCount > 0;
     m_backBtn  ->setEnabled(canBack);
-    m_nextBtn  ->setEnabled(true);
+    m_nextBtn  ->setEnabled(!finished && !m_current.blanks.isEmpty());
     m_newGameBtn->setEnabled(true);
     m_printBtn ->setEnabled(finished);
     m_copyBtn  ->setEnabled(finished);
