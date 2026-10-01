@@ -1,3 +1,10 @@
+// stories.h — static story data and shared template rendering.
+//
+// A Story is a titled template with numbered {{N}} placeholders (1-based)
+// plus a parallel vector of WordType describing what word each slot asks
+// for. The renderTemplate()/fillTemplate() helpers are GUI-free so the
+// game's core logic can be unit-tested without a display.
+
 #pragma once
 
 #include <QString>

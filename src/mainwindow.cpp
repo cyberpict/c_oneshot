@@ -21,8 +21,12 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+// mainwindow.cpp — implementation of MainWindow: the Mad Libs game UI.
+
 namespace madlibs {
 
+// Loads all stories, shows the first one, wires up signals/slots and
+// resets to a fresh game state.
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , m_stories(allStories())
@@ -151,6 +155,9 @@ void MainWindow::buildActions()
     addToolBar(tb);
 }
 
+// Resets all game state and prompts for the first slot of the currently
+// selected story. Handles the (unlikely) edge case of a story with no
+// blanks by marking the game finished immediately.
 void MainWindow::newGame()
 {
     m_current     = m_stories.value(m_storyBox->currentIndex());
@@ -158,6 +165,7 @@ void MainWindow::newGame()
     m_filledCount = 0;
 
     if (m_current.blanks.isEmpty()) {
+        // Nothing to fill — show the template and treat it as finished.
         m_questionLabel->setText(tr("This story has no blanks."));
         m_templateView->setPlainText(renderTemplate(m_current, m_answers, /*active*/ 0));
         m_input->clear();
@@ -168,6 +176,7 @@ void MainWindow::newGame()
         return;
     }
 
+    // Prompt for the first slot, showing the story title in the prompt.
     m_questionLabel->setText(
         tr("%1 (slot 1 of %2): give me %3")
             .arg(m_current.title)
@@ -184,11 +193,15 @@ void MainWindow::newGame()
     m_input->setFocus();
 }
 
+// Changing the story combobox always starts a fresh game with it.
 void MainWindow::onStoryChanged()
 {
     newGame();
 }
 
+// Accepts the word in the input box as the answer for the current slot,
+// then either promotes to the finished state or advances the prompt to
+// the next slot.
 void MainWindow::advance()
 {
     if (m_filledCount >= m_current.blanks.size()) {
@@ -197,6 +210,7 @@ void MainWindow::advance()
         return;
     }
 
+    // Trimmed to reject pure-whitespace input.
     const QString word = m_input->text().trimmed();
     if (word.isEmpty()) {
         m_input->setFocus();
@@ -226,6 +240,9 @@ void MainWindow::advance()
     refreshButtons();
 }
 
+// Undoes the most recent answer: removes it from m_answers, re-prompts
+// the player for that same slot, and pre-fills its previous word so it
+// can be edited. Back() at slot 0 is a no-op (Back button is disabled).
 void MainWindow::back()
 {
     if (m_filledCount == 0)
@@ -251,6 +268,8 @@ void MainWindow::back()
     refreshButtons();
 }
 
+// Promotes the UI into the "game over" state: shows the fully filled
+// story, disables the input, and unlocks Copy/Print.
 void MainWindow::finishState()
 {
     m_questionLabel->setText(tr("Done! Read it, then copy or print, or press Back to edit."));

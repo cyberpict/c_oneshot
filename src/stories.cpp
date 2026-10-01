@@ -1,9 +1,18 @@
+// stories.cpp — implementations declared in stories.h:
+//  - word-type pretty-printing (for questions and plain labels)
+//  - template scanning/rendering (the shared core logic used by the UI
+//    and by the tests)
+//  - the built-in catalog of stories
+
 #include "stories.h"
 
 #include <QStringList>
 
 namespace madlibs {
 
+// Human-readable question fragment for a blank, e.g. "a noun",
+// "an adjective". The article is baked in ("a" vs "an") to read
+// naturally when interpolated into the slot prompt.
 QString wordTypeQuestion(WordType t)
 {
     switch (t) {
@@ -24,6 +33,7 @@ QString wordTypeQuestion(WordType t)
     return QStringLiteral("a word");
 }
 
+// Plain name of a word type without article, e.g. "noun", "animal".
 QString wordTypeToString(WordType t)
 {
     switch (t) {
@@ -44,6 +54,10 @@ QString wordTypeToString(WordType t)
     return QStringLiteral("word");
 }
 
+// Scans the template left to right, emitting the literal text between
+// placeholders and substituting each {{N}}. Linear single pass; indexOf
+// is used twice per placeholder (open then close) which is fine for
+// these short templates.
 QString renderTemplate(const Story &story,
                        const QStringList &answers,
                        int activeSlot)
@@ -51,11 +65,16 @@ QString renderTemplate(const Story &story,
     QString out;
     int i = 0;
     while (i < story.templateText.size()) {
+        // Find the next placeholder opening, if any.
         const int open = story.templateText.indexOf(QStringLiteral("{{"), i);
-        if (open < 0) { out += story.templateText.mid(i); break; }
+        if (open < 0) { out += story.templateText.mid(i); break; }  // tail text
+        // Everything before {{ is literal — copy it verbatim.
         out += story.templateText.mid(i, open - i);
+        // A missing closer means the template is malformed: emit the
+        // rest verbatim rather than dropping it.
         const int close = story.templateText.indexOf(QStringLiteral("}}"), open + 2);
         if (close < 0) { out += story.templateText.mid(open); break; }
+        // The placeholder is the (trimmed) number between {{ and }}.
         bool ok = false;
         const int slot = story.templateText.mid(open + 2, close - open - 2).trimmed().toInt(&ok);
         if (ok && slot >= 1 && slot <= story.blanks.size())
