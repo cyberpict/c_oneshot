@@ -1,0 +1,9 @@
+# Build directories
+build/
+build-*/
+cmake-build-*/
+
+# Qt / tooling leftovers
+*.pro.user
+.qmake.stash
+CMakeLists.txt.user*

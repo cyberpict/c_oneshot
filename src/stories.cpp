@@ -1,28 +1,8 @@
 #include "stories.h"
 
-#include <QHash>
+#include <QStringList>
 
 namespace madlibs {
-
-WordType wordTypeFromString(const QString &name)
-{
-    static const QHash<QString, WordType> map = {
-        {"noun",        WordType::Noun},
-        {"plural_noun", WordType::PluralNoun},
-        {"verb",        WordType::Verb},
-        {"past_verb",   WordType::PastTenseVerb},
-        {"adjective",   WordType::Adjective},
-        {"adverb",      WordType::Adverb},
-        {"exclamation", WordType::Exclamation},
-        {"person",      WordType::Person},
-        {"place",       WordType::Place},
-        {"animal",      WordType::Animal},
-        {"color",       WordType::Color},
-        {"food",        WordType::Food},
-        {"number",      WordType::Number},
-    };
-    return map.value(name.trimmed(), WordType::Noun);
-}
 
 QString wordTypeQuestion(WordType t)
 {
@@ -62,6 +42,38 @@ QString wordTypeToString(WordType t)
     case WordType::Number:        return QStringLiteral("number");
     }
     return QStringLiteral("word");
+}
+
+QString renderTemplate(const Story &story,
+                       const QStringList &answers,
+                       int activeSlot)
+{
+    QString out;
+    int i = 0;
+    while (i < story.templateText.size()) {
+        const int open = story.templateText.indexOf(QStringLiteral("{{"), i);
+        if (open < 0) { out += story.templateText.mid(i); break; }
+        out += story.templateText.mid(i, open - i);
+        const int close = story.templateText.indexOf(QStringLiteral("}}"), open + 2);
+        if (close < 0) { out += story.templateText.mid(open); break; }
+        bool ok = false;
+        const int slot = story.templateText.mid(open + 2, close - open - 2).trimmed().toInt(&ok);
+        if (ok && slot >= 1 && slot <= story.blanks.size())
+            out += (slot <= answers.size())
+                       ? ((slot == activeSlot)
+                              ? QStringLiteral("\u27e8%1\u27e9").arg(answers.at(slot - 1))
+                              : answers.at(slot - 1))
+                       : QStringLiteral("[%1]").arg(slot);   // not filled yet
+        else
+            out += QStringLiteral("[?]");   // invalid placeholder
+        i = close + 2;
+    }
+    return out;
+}
+
+QString fillTemplate(const Story &story, const QStringList &answers)
+{
+    return renderTemplate(story, answers, /*activeSlot*/ 0); // 0 is never a real (1-based) slot
 }
 
 QVector<Story> allStories()

@@ -30,14 +30,10 @@ private slots:
     void onCopyResult();
 
 private:
-    void    buildUi();
-    void    buildActions();
-    void    finishState();
-    QString fillIn(const Story &story, const QStringList &answers) const;
-    QString renderTemplate(const Story &story,
-                           const QStringList &answers,
-                           int activeSlot /*1-based*/) const;
-    void    refreshButtons();
+    void buildUi();
+    void buildActions();
+    void finishState();
+    void refreshButtons();
 
     QVector<Story> m_stories;
     Story          m_current;
